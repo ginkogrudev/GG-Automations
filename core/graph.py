@@ -32,13 +32,14 @@ from agents.coder import coder_agent
 logger = logging.getLogger(__name__)
 
 
-# ── Routing logic (pure function — easy to unit test) ─────────────────
-
+# ── Routing logic (pure function — easy to unit test) ───────────────
 def route_after_router(state: GGState) -> str:
     """
     First branch: immediately after the router.
     Decides whether we need enrichment before the specialist.
     """
+    
+    
     routes = {
         "strategy":        "strategist",
         "prompt_engineer": "prompt_engineer",
@@ -46,6 +47,17 @@ def route_after_router(state: GGState) -> str:
         "search":          "search_enricher",  # ← goes to enricher first
         "unknown":         END,
     }
+    
+    if state.task_type == "search":
+        return "search_enricher"
+    
+    # 2. Бизнес логика: Ако е стратегия, проверяваме Tier-а
+    if state.task_type == "strategy":
+        if state.budget_tier == "Grand_Slam":
+            # Тук можем да го пратим към специален възел за Revenue Share анализ
+            return "revenue_analyst" 
+        return "strategist"
+    
     destination = routes.get(state.task_type, END)
     logger.info("[Graph] router → %s", destination)
     return destination
