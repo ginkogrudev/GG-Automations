@@ -8,7 +8,7 @@ def call_model(state: GGState):
     return {"messages": ["Ето твоята Grand Slam Offer стратегия..."]}
 
 # Инициализиране на графа
-workflow = StateGraph(GGState)
+workflow = StateGraph(GGState)  # ty:ignore[invalid-argument-type]
 
 # Добавяне на възли
 workflow.add_node("strategist", call_model)
