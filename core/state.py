@@ -1,95 +1,51 @@
 """
 core/state.py
 ─────────────────────────────────────────────────────────────
-The State is the "shared whiteboard" every agent reads from
-and writes to as the task flows through the graph.
+The single source of truth for the GG AI Factory.
 
-Think of it like a baton in a relay race — each runner (agent)
-picks it up, adds their contribution, and passes it forward.
+Every agent reads from GGState. Every agent writes to GGState.
+Nothing passes between nodes except this dict.
+
+Rule: if a field isn't in here, it doesn't exist in the system.
 """
 
 from __future__ import annotations
-from typing import Annotated, Any
-from pydantic import BaseModel, Field
-from langgraph.graph.message import add_messages
+from typing import List, Optional
+from typing_extensions import TypedDict
 
 
-# ── Task types the router can classify ───────────────────────────────
-TASK_TYPES = {
-    "strategy":         "Write a proposal / strategy / offer",
-    "prompt_engineer":  "Optimise or build a prompt for another AI",
-    "code":             "Generate HTML/CSS/JS boilerplate",
-    "search":           "Research a topic and summarise",
-    "unknown":          "Cannot classify — escalate to human",
-}
-
-
-class GGState(BaseModel):
+class GGState(TypedDict, total=False):
     """
-    Everything the system remembers about a single run.
-
-    Layers:
-      1. INPUT   — what the user sent us
-      2. ROUTING — where the router decided to send it
-      3. CONTEXT — data collected along the way (search results, etc.)
-      4. OUTPUT  — the final deliverable
-      5. META    — bookkeeping (retries, errors, audit trail)
+    total=False → all keys are optional at construction time.
+    LangGraph builds state incrementally — each node adds its fields.
+    If total=True, Python would demand ALL keys up front. That breaks
+    the pattern where router sets task_type and strategist sets final_output.
     """
 
-    # ── 1. INPUT ──────────────────────────────────────────────────────
-    user_input: str = Field(..., description="Raw request from the user")
-    session_id: str = Field(default="", description="Unique run identifier")
+    # ── INPUT ─────────────────────────────────────────────────────────
+    user_input: str             # Raw task string from the user
+    session_id: str             # Short UUID for this run (used in filenames)
+    output_format: str          # "markdown" | "html" | "pdf" | "json"
 
-    # ── 2. ROUTING ────────────────────────────────────────────────────
-    task_type: str = Field(
-        default="unknown",
-        description=f"One of: {list(TASK_TYPES.keys())}",
-    )
-    routing_reason: str = Field(
-        default="",
-        description="Why the router chose this task_type (for debugging)",
-    )
+    # ── ROUTING (written by router_agent) ─────────────────────────────
+    task_type: str              # What the router classified this as
+                                # e.g. "strategy", "offer", "html", "audit", "unknown"
+    routing_reason: str         # Why the router chose this route (for logging)
+    agent_trail: List[str]      # Breadcrumb trail e.g. ["router", "strategist"]
+    current_agent: str          # Which agent is currently executing
 
-    # ── 3. CONTEXT ────────────────────────────────────────────────────
-    search_results: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="Results gathered by the web_search tool",
-    )
-    enriched_context: str = Field(
-        default="",
-        description="Processed / summarised context ready for downstream agents",
-    )
+    # ── AGENT OUTPUTS (each agent writes to its own key) ──────────────
+    business_strategy: Optional[str]    # Output of strategist agent
+    grand_slam_offer: Optional[str]     # Output of offer_builder agent
+    html_output: Optional[str]          # Output of html_coder agent
+    audit_output: Optional[str]         # Output of google_business_audit agent
+    final_output: Optional[str]         # The assembled final result for the user
 
-    # ── 4. OUTPUT ─────────────────────────────────────────────────────
-    draft_output: str = Field(
-        default="",
-        description="First pass from the specialist agent",
-    )
-    final_output: str = Field(
-        default="",
-        description="Polished, user-facing deliverable",
-    )
-    output_format: str = Field(
-        default="markdown",
-        description="markdown | html | pdf | json",
-    )
+    # ── CONVERSATION HISTORY ──────────────────────────────────────────
+    messages: List[dict]        # Full LangChain message history
+                                # Format: [{"role": "user", "content": "..."}]
 
-    # ── 5. META ───────────────────────────────────────────────────────
-    errors: list[str] = Field(default_factory=list)
-    agent_trail: list[str] = Field(
-        default_factory=list,
-        description="Which agents ran, in order — full audit trail",
-    )
-    retry_count: int = Field(default=0)
-
-    # ── Helpers ───────────────────────────────────────────────────────
-    def log_agent(self, name: str) -> None:
-        """Call at the start of every agent to record execution order."""
-        self.agent_trail.append(name)
-
-    def add_error(self, msg: str) -> None:
-        self.errors.append(msg)
-
-    @property
-    def has_errors(self) -> bool:
-        return len(self.errors) > 0
+    # ── META / ERROR TRACKING ─────────────────────────────────────────
+    errors: List[str]           # Any errors caught during execution
+    has_errors: bool            # Quick flag — avoids iterating errors list
+    iteration_count: int        # Guard against infinite loops in the graph
