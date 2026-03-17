@@ -92,20 +92,17 @@ def run(user_input: str, output_format: str = "markdown") -> GGState | None:
     console.print()
     trail = " → ".join(final_state.get('agent_trail', ['router']))
     console.print(f"[dim]Route:[/] {trail}")
-    
     if final_state.get("routing_reason", ""):
         console.print(f"[dim]Reason:[/] {final_state.get('routing_reason', '')}")
     console.print()
-
     # 3. Обработка на резултата
     final_output = final_state.get("final_output")
     if final_output:
         display_content = (
-            Markdown(final_output) 
-            if final_state.get("output_format") == "markdown" 
+            Markdown(final_output)
+            if final_state.get("output_format") == "markdown"
             else Text(final_output)
         )
-        
         console.print(
             Panel(
                 display_content,
@@ -113,7 +110,6 @@ def run(user_input: str, output_format: str = "markdown") -> GGState | None:
                 border_style="green",
             )
         )
-        
         # 4. Запазване на файла със защита
         try:
             saved_path = save_doc(
