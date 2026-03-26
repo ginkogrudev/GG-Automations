@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GG AI Factory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0f0f14;--surface:#16161d;--border:#2a2a35;
+  --pink:#ff2e93;--pink-light:#ffa6d4;--text:#e8e8e8;--dim:#888;
+  --mono:'DM Mono',monospace;--sans:system-ui,-apple-system,sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px}
+a{color:var(--pink)}
+
+/* Layout */
+.app{display:flex;height:100vh;overflow:hidden}
+.panel{padding:28px;overflow-y:auto}
+.left{width:420px;min-width:340px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:20px}
+.right{flex:1;display:flex;flex-direction:column}
+
+/* Header */
+.logo{font-family:var(--mono);font-size:22px;font-weight:500;display:flex;align-items:center;gap:10px}
+.logo span{font-size:30px}
+
+/* Form */
+label{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:6px}
+textarea{
+  width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);padding:12px;font-family:var(--sans);font-size:14px;resize:vertical;
+  transition:border .2s;
+}
+textarea:focus{outline:none;border-color:var(--pink)}
+select{
+  width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);padding:10px 12px;font-size:14px;appearance:none;cursor:pointer;
+}
+select:focus{outline:none;border-color:var(--pink)}
+
+/* Button */
+.run-btn{
+  width:100%;padding:14px;background:var(--pink);color:#fff;font-family:var(--mono);
+  font-size:16px;font-weight:500;border:none;border-radius:10px;cursor:pointer;
+  transition:box-shadow .3s,opacity .2s;
+}
+.run-btn:hover{box-shadow:0 0 24px #ff2e9355}
+.run-btn:active{opacity:.85}
+.run-btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+
+/* Agent trail */
+.trail{display:flex;flex-wrap:wrap;gap:6px;min-height:28px;align-items:center}
+.pill{
+  font-family:var(--mono);font-size:12px;padding:4px 12px;border-radius:20px;
+  background:var(--surface);border:1px solid var(--border);color:var(--dim);
+  animation:fadeIn .4s ease;
+}
+.pill.active{border-color:var(--pink);color:var(--pink)}
+.arrow{color:var(--dim);font-size:11px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* History */
+.history{margin-top:auto}
+.history-item{
+  font-size:12px;color:var(--dim);padding:6px 10px;border-radius:6px;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s;
+}
+.history-item:hover{background:var(--surface);color:var(--text)}
+
+/* Output */
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--dim);gap:12px}
+.empty-state .pig{font-size:64px}
+.output-wrap{flex:1;overflow-y:auto;animation:fadeIn .5s ease}
+.output-content{
+  padding:24px;line-height:1.7;
+}
+.output-content h1,.output-content h2,.output-content h3{color:var(--pink-light);margin:20px 0 10px}
+.output-content h1{font-size:1.6em}
+.output-content h2{font-size:1.3em}
+.output-content h3{font-size:1.1em}
+.output-content p{margin-bottom:12px}
+.output-content ul,.output-content ol{margin:0 0 12px 20px}
+.output-content li{margin-bottom:4px}
+.output-content code{background:var(--surface);padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:13px}
+.output-content pre{background:var(--surface);padding:16px;border-radius:8px;overflow-x:auto;margin:12px 0}
+.output-content pre code{padding:0;background:none}
+.output-content strong{color:var(--pink-light)}
+.output-content blockquote{border-left:3px solid var(--pink);padding-left:14px;color:var(--dim);margin:12px 0}
+.output-content table{border-collapse:collapse;width:100%;margin:12px 0}
+.output-content th,.output-content td{border:1px solid var(--border);padding:8px 12px;text-align:left}
+.output-content th{background:var(--surface);color:var(--pink-light)}
+
+.preview-iframe{width:100%;flex:1;border:none;border-radius:8px;background:#fff}
+
+/* Toolbar */
+.toolbar{display:flex;gap:10px;padding:16px 24px;border-top:1px solid var(--border);align-items:center}
+.toolbar .format-badge{font-family:var(--mono);font-size:11px;color:var(--dim);padding:4px 10px;background:var(--surface);border-radius:4px}
+.dl-btn{
+  margin-left:auto;padding:8px 18px;background:transparent;border:1px solid var(--border);
+  color:var(--text);font-size:13px;border-radius:6px;cursor:pointer;transition:border-color .2s;
+}
+.dl-btn:hover{border-color:var(--pink)}
+
+/* Errors */
+.error-banner{background:#3a1525;border:1px solid #ff2e9355;color:#ff8dba;padding:12px 16px;border-radius:8px;margin:16px 24px;font-size:13px}
+
+/* Settings bar */
+.settings-bar{padding:10px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.key-input{
+  background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);padding:6px 10px;font-size:12px;font-family:var(--mono);flex:1;max-width:280px;
+}
+.key-input:focus{outline:none;border-color:var(--pink)}
+.key-input::placeholder{color:var(--dim)}
+.key-label{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+
+/* Mobile */
+@media(max-width:768px){
+  .app{flex-direction:column;height:auto;min-height:100vh}
+  .left{width:100%;border-right:none;border-bottom:1px solid var(--border)}
+  .right{min-height:60vh}
+  .settings-bar{flex-wrap:wrap}
+  .key-input{max-width:100%}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- LEFT PANEL -->
+  <div class="panel left">
+    <div class="logo"><span>🐷</span> GG Factory</div>
+
+    <div>
+      <label>Describe the task</label>
+      <textarea id="task" rows="4" placeholder="Build a landing page for a solar panel company in Yambol..."></textarea>
+    </div>
+
+    <div>
+      <label>Output format</label>
+      <select id="format">
+        <option value="markdown">Markdown</option>
+        <option value="html">HTML</option>
+      </select>
+    </div>
+
+    <button class="run-btn" id="runBtn" onclick="runTask()">🐷 Run &rarr;</button>
+
+    <div>
+      <label>Agent trail</label>
+      <div class="trail" id="trail"></div>
+    </div>
+
+    <div class="history" id="historyWrap">
+      <label>Recent</label>
+      <div id="history"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right">
+    <div class="settings-bar">
+      <span class="key-label">API Key</span>
+      <input type="password" class="key-input" id="apiKey" placeholder="Enter X-API-Key..." />
+    </div>
+
+    <div class="empty-state" id="emptyState">
+      <div class="pig">🐷</div>
+      <div>Waiting for your first task&hellip;</div>
+    </div>
+
+    <div class="error-banner" id="errorBanner" style="display:none"></div>
+
+    <div class="output-wrap" id="outputWrap" style="display:none">
+      <div class="output-content" id="outputContent"></div>
+      <iframe class="preview-iframe" id="previewFrame" style="display:none" sandbox="allow-scripts allow-same-origin"></iframe>
+    </div>
+
+    <div class="toolbar" id="toolbar" style="display:none">
+      <span class="format-badge" id="formatBadge"></span>
+      <span class="format-badge" id="typeBadge"></span>
+      <button class="dl-btn" id="dlBtn" onclick="downloadOutput()">Download</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+let currentResult = null;
+
+// ── Persist API key ─────────────────────────────────────────────
+const apiKeyEl = document.getElementById('apiKey');
+apiKeyEl.value = localStorage.getItem('gg_api_key') || '';
+apiKeyEl.addEventListener('input', () => localStorage.setItem('gg_api_key', apiKeyEl.value));
+
+// ── History ─────────────────────────────────────────────────────
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem('gg_history') || '[]'); } catch { return []; }
+}
+function saveHistory(entry) {
+  const h = [entry, ...getHistory().filter(e => e.session_id !== entry.session_id)].slice(0, 5);
+  localStorage.setItem('gg_history', JSON.stringify(h));
+  renderHistory();
+}
+function renderHistory() {
+  const el = document.getElementById('history');
+  el.innerHTML = getHistory().map(e =>
+    `<div class="history-item" onclick='restoreResult(${JSON.stringify(JSON.stringify(e))})'>${e.task.slice(0, 50)}${e.task.length > 50 ? '...' : ''}</div>`
+  ).join('');
+}
+function restoreResult(json) {
+  showResult(JSON.parse(json));
+}
+
+// ── Trail animation ─────────────────────────────────────────────
+function setTrail(agents) {
+  const el = document.getElementById('trail');
+  el.innerHTML = '';
+  agents.forEach((a, i) => {
+    if (i > 0) el.innerHTML += '<span class="arrow">→</span>';
+    const pill = document.createElement('span');
+    pill.className = 'pill' + (i === agents.length - 1 ? ' active' : '');
+    pill.textContent = a;
+    pill.style.animationDelay = (i * 0.15) + 's';
+    el.appendChild(pill);
+  });
+}
+
+// ── Show result ─────────────────────────────────────────────────
+function showResult(data) {
+  currentResult = data;
+  const emptyState = document.getElementById('emptyState');
+  const outputWrap = document.getElementById('outputWrap');
+  const outputContent = document.getElementById('outputContent');
+  const previewFrame = document.getElementById('previewFrame');
+  const toolbar = document.getElementById('toolbar');
+  const errorBanner = document.getElementById('errorBanner');
+
+  emptyState.style.display = 'none';
+  outputWrap.style.display = 'flex';
+  outputWrap.style.flexDirection = 'column';
+  toolbar.style.display = 'flex';
+
+  // Errors
+  if (data.errors && data.errors.length > 0) {
+    errorBanner.style.display = 'block';
+    errorBanner.textContent = data.errors.join(' | ');
+  } else {
+    errorBanner.style.display = 'none';
+  }
+
+  // Output
+  const fmt = data.output_format || 'markdown';
+  if (fmt === 'html') {
+    outputContent.style.display = 'none';
+    previewFrame.style.display = 'block';
+    previewFrame.srcdoc = data.output || '<p>No output</p>';
+  } else {
+    previewFrame.style.display = 'none';
+    outputContent.style.display = 'block';
+    outputContent.innerHTML = marked.parse(data.output || '*No output*');
+  }
+
+  // Badges
+  document.getElementById('formatBadge').textContent = fmt;
+  document.getElementById('typeBadge').textContent = data.task_type || '—';
+
+  // Trail
+  if (data.agent_trail) setTrail(data.agent_trail);
+}
+
+// ── Run task ────────────────────────────────────────────────────
+async function runTask() {
+  const task = document.getElementById('task').value.trim();
+  if (!task) return;
+
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  btn.textContent = '🐷 Running...';
+  setTrail(['router']);
+
+  const key = apiKeyEl.value.trim();
+
+  try {
+    const res = await fetch(API_BASE + '/run', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(key ? { 'X-API-Key': key } : {}),
+      },
+      body: JSON.stringify({
+        task,
+        output_format: document.getElementById('format').value,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || 'Request failed');
+    }
+
+    const data = await res.json();
+    data.task = task;
+    showResult(data);
+    saveHistory(data);
+  } catch (e) {
+    document.getElementById('errorBanner').style.display = 'block';
+    document.getElementById('errorBanner').textContent = e.message;
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('outputWrap').style.display = 'flex';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🐷 Run →';
+  }
+}
+
+// ── Download ────────────────────────────────────────────────────
+function downloadOutput() {
+  if (!currentResult || !currentResult.output) return;
+  const fmt = currentResult.output_format || 'markdown';
+  const ext = fmt === 'html' ? 'html' : 'md';
+  const blob = new Blob([currentResult.output], { type: 'text/' + ext });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (currentResult.session_id || 'output') + '.' + ext;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── Keyboard shortcut ───────────────────────────────────────────
+document.getElementById('task').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runTask();
+});
+
+// ── Init ────────────────────────────────────────────────────────
+renderHistory();
+</script>
+</body>
+</html>
