@@ -1,0 +1,18 @@
+[Unit]
+Description=GG AI Factory — FastAPI + LangGraph
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/gg-factory
+EnvironmentFile=/var/www/gg-factory/.env
+ExecStart=/var/www/gg-factory/.venv/bin/uvicorn api:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
